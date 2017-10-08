@@ -30,14 +30,48 @@ perfect_maze__:
 	PUSH(R4)
 	PUSH(R5)
 
-	LD(BP, -12, R0)					 |maze
-	LD(BP, -16, R1) 				 |rows
-	LD(BP, -20, R2)					 |cols
-	LD(BP, -24, R3)					 |visited
-	LD(BP, -28, R4) 				 |curr_cell
+	LD(BP, -12, R0)							| maze
+	LD(BP, -16, R1) 				 		| rows
+	LD(BP, -20, R2)							| cols
+	LD(BP, -24, R3)					 		| visited
+	LD(BP, -28, R4) 				 		| curr_cell
 
-	DIVC(R4, 32, R5)
+	PUSH(R3)
+	PUSH(R4)
+	CALL(change_to_visited)
 
+
+
+|; change_to_visited(curr_cell, bitmap)
+|; Mark the cell curr_cell as visited
+change_to_visited__:
+	PUSH(LP)
+	PUSH(BP)
+	MOVE(SP, BP)
+	PUSH(R1)
+	PUSH(R2)
+	PUSH(R3)
+	
+	LD(BP, -12, R1)							| R1 <- curr_cell
+	DIVC(R1, 32, R2)
+	MULC(R2, 4, R2)							| Word offset to byte offset for bitmap
+	LD(BP, -16, R3)							| R3 <- Address of the first word of the bitmap
+	ADD(R3, R2, R3)							| R3 <- Address of the word to modify
+	LD(R3, 0, R2)
+	PUSH(R3)
+	CMOVE(1, R3)
+	MODC(R1, 32, R1)
+	SHL(R3, R1, R3)
+	OR(R2, R3, R2)							| Modification of the concerned word
+	POP(R3)
+	ST(R2, 0, R3)
+
+	POP(R3)
+	POP(R2)
+	POP(R1)
+	POP(BP)
+	POP(LP)
+	RTN()
 
 connect__:
 	PUSH(LP)
@@ -59,7 +93,7 @@ connect__:
 	MODC(R2, NB_COLS, R1)				| R1 = R2 % NB_COLS (<- source_col)
 	DIVC(R1, CELLS_PER_WORD, R1)			| R1 <- word_offset_in_line
 	ADD(R1, R0, R0)
-	PUSH(R0)					|Loc. var. 1: word_offset
+	PUSH(R0)					| Loc. var. 1: word_offset
 
 	MODC(R2, CELLS_PER_WORD), R0);			| R0 = R2 % CELLS_PER_WORD
 	PUSH(R0)					| Loc. var. 2: byte_offset
