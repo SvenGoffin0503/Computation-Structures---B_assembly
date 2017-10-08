@@ -14,6 +14,25 @@ CELLS_PER_WORD = 4
 BYTES_PER_WORD = 4
 
 
+perfect_maze__:
+	PUSH(LP)
+	PUSH(BP)
+	MOVE(SP, BP)
+	PUSH(R0)
+	PUSH(R1)
+	PUSH(R2)
+	PUSH(R3)
+	PUSH(R4)
+	PUSH(R5)
+
+	LD(BP, -12, R0)					 |maze
+	LD(BP, -16, R1) 				 |rows
+	LD(BP, -20, R2)					 |cols
+	LD(BP, -24, R3)					 |visited
+	LD(BP, -28, R4) 				 |curr_cell
+
+	DIVC(R4, 32, R5)
+
 
 connect__:
 	PUSH(LP)
@@ -24,14 +43,14 @@ connect__:
 	PUSH(R2)
 	PUSH(R3)
 
-	LD(BP, -16, R2)						 | One of the two cells to connect
-	LD(BP, -20, R3)						| The other cell to connect
+	LD(BP, -16, R2)					| One of the two cells to connect
+	LD(BP, -20, R3)					| The other cell to connect
 	CMPLT(R2, R3, R0)
-	BT(R0, . + 12)						| Branch if swap not needed
+	BT(R0, . + 12)					| Branch if swap not needed
 	PUSH(R2)
 	MOVE(R3, R2)
 	POP(R3)
-											| R2 offset < R3 offset
+							| R2 offset < R3 offset
 	DIVC(R3, NB_COLS, R0)
 	MULC(R0, WORDS_PER_ROW, R0)			| R0 <- row_offset
 	DIVC(R2, NB_COLS, R1)
