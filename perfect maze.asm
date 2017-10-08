@@ -3,124 +3,124 @@
 
 | Definition of useful constants.
 
-NB_ROWS = 8;
-NB_COLS = 32;
-NB_CELLS = 256;
-WORDS_PER_MEM_LINE = 8;
-MEM_LINES_PER_ROW = 8;
-WORDS_PER_ROW = 64;
-NB_MAZE_WORDS = 512; 
-CELLS_PER_WORD = 4;
-BYTES_PER_WORD = 4;
+NB_ROWS = 8
+NB_COLS = 32
+NB_CELLS = 256
+WORDS_PER_MEM_LINE = 8
+MEM_LINES_PER_ROW = 8
+WORDS_PER_ROW = 64
+NB_MAZE_WORDS = 512 
+CELLS_PER_WORD = 4
+BYTES_PER_WORD = 4
 
 
 
 connect__:
-	PUSH(LP);
-	PUSH(BP);
-	MOVE(PC, BP);
-	PUSH(R0);
-	PUSH(R1);
-	PUSH(R2);
-	PUSH(R3);
+	PUSH(LP)
+	PUSH(BP)
+	MOVE(SP, BP)
+	PUSH(R0)
+	PUSH(R1)
+	PUSH(R2)
+	PUSH(R3)
 
-	LD(BP, -16, R2);						 | One of the two cells to connect
-	LD(BP, -20, R3);						| The other cell to connect
-	CMPLT(R2, R3, R0);
-	BT(R0, . + 12);							| Branch if swap not needed
-	PUSH(R2);
-	MOVE(R3, R2);
-	POP(R3);
+	LD(BP, -16, R2)						 | One of the two cells to connect
+	LD(BP, -20, R3)						| The other cell to connect
+	CMPLT(R2, R3, R0)
+	BT(R0, . + 12)						| Branch if swap not needed
+	PUSH(R2)
+	MOVE(R3, R2)
+	POP(R3)
 											| R2 offset < R3 offset
-	DIVC(R3, NB_COLS, R0);
-	MULC(R0, WORDS_PER_ROW, R0);			| R0 <- row_offset
-	DIVC(R2, NB_COLS, R1);
-	MULC(R0, NB_COLS, R1); 
-	SUB(R2, R1, R1);						| R1 = R2 % NB_COLS (<- source_col)
-	DIVC(R1, CELLS_PER_WORD, R1);			| R1 <- word_offset_in_line
-	ADD(R1, R0, R0);
-	PUSH(R0);								|Loc. var. 1: word_offset
+	DIVC(R3, NB_COLS, R0)
+	MULC(R0, WORDS_PER_ROW, R0)			| R0 <- row_offset
+	DIVC(R2, NB_COLS, R1)
+	MULC(R1, NB_COLS, R1)				|Pas R0 mais R1 comme 1e param
+	SUB(R2, R1, R1)						| R1 = R2 % NB_COLS (<- source_col)
+	DIVC(R1, CELLS_PER_WORD, R1)			| R1 <- word_offset_in_line
+	ADD(R1, R0, R0)
+	PUSH(R0)								|Loc. var. 1: word_offset
 
-	DIVC(R2, CELLS_PER_WORD, R0);
-	MULC(R0, CELLS_PER_WORD, R0); 
-	SUB(R2, R0, R0);						| R0 = R2 % CELLS_PER_WORD
-	PUSH(R0);								| Loc. var. 2: byte_offset
+	DIVC(R2, CELLS_PER_WORD, R0)
+	MULC(R0, CELLS_PER_WORD, R0)
+	SUB(R2, R0, R0)						| R0 = R2 % CELLS_PER_WORD
+	PUSH(R0)								| Loc. var. 2: byte_offset
 
-	LD(BP, -12, R1);						| First word of the maze
-	SUB(R3, R2, R0);
-	SUBC(R0, 1, R0);
-	BEQ(R0, hor_connect);
-	BNE(R0, ver_connect);
+	LD(BP, -12, R1)						| First word of the maze
+	SUB(R3, R2, R0)
+	SUBC(R0, 1, R0)
+	BEQ(R0, hor_connect)
+	BNE(R0, ver_connect)
 
 
 connect_hor:
-	CMOVE(0xFFFFFF00, R0);
-	JMP(mask_generator, LP);				| R0 <- mask
+	CMOVE(0xFFFFFF00, R0)
+	JMP(mask_generator, LP)				| R0 <- mask
 
-	POP(R3);								| R3 <- word_offset
-	CMOVE(3, R2);
-	MULC(R2, WORDS_PER_MEM_LINE, R2);
-	ADD(R3, R2, R3);						| R3 <- word_offset + 3 * WORDS_PER_MEM_LINE
-	MULC(R3, BYTES_PER_WORD, R3);			| Word offset to byte offset
-	ADD(R1, R3, R1);						| R1 <- address of the first word to change
-	JMP(word_change, LP);					| First word changed
+	POP(R3)								| R3 <- word_offset
+	CMOVE(3, R2)
+	MULC(R2, WORDS_PER_MEM_LINE, R2)
+	ADD(R3, R2, R3)						| R3 <- word_offset + 3 * WORDS_PER_MEM_LINE
+	MULC(R3, BYTES_PER_WORD, R3)			| Word offset to byte offset
+	ADD(R1, R3, R1)						| R1 <- address of the first word to change
+	JMP(word_change, LP)					| First word changed
 
-	CMOVE(BYTES_PER_WORD, R3);
-	MULC(R3, WORDS_PER_MEM_LINE, R3);
-	ADD(R1, R3, R1);						| R1 <- address of the second word to change
-	JMP(word_change, LP);					| Second word changed
+	CMOVE(BYTES_PER_WORD, R3)
+	MULC(R3, WORDS_PER_MEM_LINE, R3)
+	ADD(R1, R3, R1)						| R1 <- address of the second word to change
+	JMP(word_change, LP)					| Second word changed
 
-	ADD(R1, R3, R1);						| R1 <- address of the third word to change
-	JMP(word_change, LP);					| Third word changed
+	ADD(R1, R3, R1)						| R1 <- address of the third word to change
+	JMP(word_change, LP)					| Third word changed
 
-	ADD(R1, R3, R1);						| R1 <- address of the fourth word to change
-	JMP(word_change, LP);					| Fourth word changed
+	ADD(R1, R3, R1)						| R1 <- address of the fourth word to change
+	JMP(word_change, LP)					| Fourth word changed
 
-	JMP(connect_end);
+	JMP(connect_end)
 
 
 connect_ver:
-	CMOVE(0xFFFFFFE1, R0);
-	JMP(mask_generator, LP);				| R0 <- mask
+	CMOVE(0xFFFFFFE1, R0)
+	JMP(mask_generator, LP)				| R0 <- mask
 
-	POP(R3);								| R3 <- word_offset
-	MULC(R3, BYTES_PER_WORD, R3);			| Word offset to byte offset
-	ADD(R1, R3, R1);						| R1 <- address of the first word to change
-	JMP(word_change, LP);					| First word changed
+	POP(R3)								| R3 <- word_offset
+	MULC(R3, BYTES_PER_WORD, R3)			| Word offset to byte offset
+	ADD(R1, R3, R1)						| R1 <- address of the first word to change
+	JMP(word_change, LP)					| First word changed
 
-	CMOVE(BYTES_PER_WORD, R3);
-	MULC(R3, WORDS_PER_MEM_LINE, R3);
-	ADD(R1, R3, R1);						| R1 <- address of the second word to change
-	JMP(word_change, LP);					| Second word changed
+	CMOVE(BYTES_PER_WORD, R3)
+	MULC(R3, WORDS_PER_MEM_LINE, R3)
+	ADD(R1, R3, R1)						| R1 <- address of the second word to change
+	JMP(word_change, LP)					| Second word changed
 
-	JMP(connect_end);
+	JMP(connect_end)
 
 
 mask_generator:
 	POP(R3)									| R3 <- byte_offset
-	MULC(R3, 8, R2);
-	SHL(R0, R2, R0);						| R0 <- R0 << (8 * byte_offset)
-	CMOVE(4, R2);
-	SUB(R2, R3, R3);						| R3 <- 4 - byte_offset
-	MULC(R3, 8, R3);
-	CMOVE(0xFFFFFFFF, R2);
-	SHR(R2, R3, R2);						| R2 <- R2 >> 8 * (4 - byte_offset)
-	OR(R0, R2, R0);							| R0 <- mask
-	JMP(LP);
+	MULC(R3, 8, R2)
+	SHL(R0, R2, R0)						| R0 <- R0 << (8 * byte_offset)
+	CMOVE(4, R2)
+	SUB(R2, R3, R3)						| R3 <- 4 - byte_offset
+	MULC(R3, 8, R3)
+	CMOVE(0xFFFFFFFF, R2)
+	SHR(R2, R3, R2)						| R2 <- R2 >> 8 * (4 - byte_offset)
+	OR(R0, R2, R0)							| R0 <- mask
+	JMP(LP)
 
 
 word_change:
-	LD(R1, 0, R2);
-	AND(R2, R0, R2);
-	ST(R2, 0, R1);							| <R1> <- mask & Mem[R1]
-	JMP(LP);
+	LD(R1, 0, R2)
+	AND(R2, R0, R2)
+	ST(R2, 0, R1)						| <R1> <- mask & Mem[R1]
+	JMP(LP)
 
 
 connect_end:
-	POP(R3);
-	POP(R2);
-	POP(R1);
-	POP(R0);
-	POP(BP);
-	POP(LP);
-	RTN();
+	POP(R3)
+	POP(R2)
+	POP(R1)
+	POP(R0)
+	POP(BP)
+	POP(LP)
+	RTN()
