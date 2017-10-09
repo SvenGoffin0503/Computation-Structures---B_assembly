@@ -56,15 +56,15 @@ change_to_visited__:
 	DIVC(R1, 32, R2)
 	MULC(R2, 4, R2)							| Word offset to byte offset for bitmap
 	LD(BP, -16, R3)							| R3 <- Address of the first word of the bitmap
-	ADD(R3, R2, R3)							| R3 <- Address of the word to modify
-	LD(R3, 0, R2)
+	ADD(R3, R2, R3)							| R3 <- Address of the word to modify      
 	PUSH(R3)
 	CMOVE(1, R3)
-	MODC(R1, 32, R1)
-	SHL(R3, R1, R3)
+	MODC(R1, 32, R2)
+	SHL(R3, R2, R3)
+	POP(R1)
+	LD(R1, 0, R2)							| R2 <- Word of the bitmap to change
 	OR(R2, R3, R2)							| Modification of the concerned word
-	POP(R3)
-	ST(R2, 0, R3)
+	ST(R2, 0, R1)
 
 	POP(R3)
 	POP(R2)
