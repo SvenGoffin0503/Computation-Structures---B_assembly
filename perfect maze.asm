@@ -223,8 +223,8 @@ connect__:
 	LD(BP, -4, R1)							| First word of the maze
 	SUB(R3, R2, R0)
 	SUBC(R0, 1, R0)
-	BEQ(R0, hor_connect)
-	BNE(R0, ver_connect)
+	BEQ(R0, connect_hor)
+	BNE(R0, connect_ver)
 
 
 connect_hor:
