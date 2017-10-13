@@ -179,7 +179,7 @@ is_visited__:
 	POP(R1)									| R1 <- Address of the word to check
 	LD(R1, 0, R2)							| R2 <- Word of the bitmap to check
 	AND(R2, R3, R2)
-	BF(is_visited_end)
+	BF(R2, is_visited_end)
 	ADDC(R0, 1, R0)
 
 is_visited_end:
