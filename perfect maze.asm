@@ -87,7 +87,7 @@ build_maze_loop:
 	PUSH(R3)								| Arg. 2 <- bitmap "visited"
 	PUSH(R0)								| Arg. 1 <- chosen neighbour cell
 	CALL(is_visited__, 2)
-	BT(build_maze_loop)
+	BT(R0, build_maze_loop)
 
 	LD(BP, -20, R2)							
 	PUSH(R2)								| Arg. 4 <- nb_cols
