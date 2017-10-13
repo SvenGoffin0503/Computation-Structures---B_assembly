@@ -38,7 +38,7 @@ perfect_maze__:
 
 	PUSH(R3)								| Arg. 2 <- bitmap "visited"
 	PUSH(R4)								| Arg. 1 <- curr_cell
-	CALL(change_to_visited, 2)
+	CALL(change_to_visited__, 2)
 	CMOVE(0, R1)							| R1 = nb_valid_neighbours
 	
 	MOD(R4, R2, R0)							| R0 <- col of curr_cell
