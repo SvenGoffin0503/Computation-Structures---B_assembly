@@ -1,6 +1,5 @@
 .include beta.uasm
 
-
 | Definition of useful constants.
 
 WORDS_PER_MEM_LINE = 8
