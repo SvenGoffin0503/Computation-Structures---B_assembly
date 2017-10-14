@@ -39,62 +39,62 @@ perfect_maze:
 	CMOVE(0, R1)							| R1 = nb_valid_neighbours
 	
 	MOD(R4, R2, R0)							| R0 <- col of curr_cell
-	BF(R0, . + 12)
+	BF(R0, . + 16)
 	ADDC(R1, 1, R1)
 	SUBC(R4, 1, R5)
-	PUSH(R5)								| Stack <- cell of a valid neighbour
+	PUSH(R5)								| Stack <- cell of a valid neighbour (left)
 
 	SUBC(R2, 1, R5)
 	CMPEQ(R5, R0, R5)
-	BT(R5, . + 12)
+	BT(R5, . + 16)
 	ADDC(R1, 1, R1)
 	ADDC(R4, 1, R5)
-	PUSH(R5)								| Stack <- cell of a valid neighbour
+	PUSH(R5)								| Stack <- cell of a valid neighbour (right)
 
 	DIV(R4, R2, R0)							| R0 <- row of curr_cell
-	BEQ(R0, . + 12)
+	BEQ(R0, . + 16)
 	ADDC(R1, 1, R1)
-	ADD(R4, R2, R5)
-	PUSH(R5)								| Stack <- cell of a valid neighbour
+	SUB(R4, R2, R5)
+	PUSH(R5)								| Stack <- cell of a valid neighbour (top)
 
 	LD(BP, -16, R5)							| R5 <- rows
 	SUBC(R5, 1, R5)
 	CMPEQ(R5, R0, R5)
-	BT(R5, . + 12)
+	BT(R5, . + 16)
 	ADDC(R1, 1, R1)
 	ADD(R4, R2, R0)
-	PUSH(R0)								| Stack <- cell of a valid neighbour
+	PUSH(R0)								| Stack <- cell of a valid neighbour (bottom)
 
 build_maze_loop:
 	RANDOM()
 	CMPLTC(R0, 0, R2)
-	BF(R2, . + 4)
+	BF(R2, . + 8)
 	MULC(R0, -1, R0)
 	MOD(R0, R1, R2)
 	ADDC(R2, 1, R2)							| R2 <- neighbour chosen randomly
 	MULC(R2, -4, R2)
 	ADD(SP, R2, R2)
-	LD(R2, 0, R0)							| R0 <- nb cell of the chosen neighbour
+	LD(R2, 0, R5)							| R5 <- nb cell of the chosen neighbour
 	SUBC(R1, 1, R1)
-	LD(SP, -4, R5)
-	ST(R5, 0, R2)							
+	LD(SP, -4, R0)
+	ST(R0, 0, R2)							
 	DEALLOCATE(1)							| Deletion of the chosen neighbour cell 
 											| on the stack
 
 	PUSH(R3)								| Arg. 2 <- bitmap "visited"
-	PUSH(R0)								| Arg. 1 <- chosen neighbour cell
+	PUSH(R5)								| Arg. 1 <- chosen neighbour cell
 	CALL(is_visited__, 2)
 	BT(R0, build_maze_loop)
 
 	LD(BP, -20, R2)							
 	PUSH(R2)								| Arg. 4 <- nb_cols
-	PUSH(R0)								| Arg. 3 <- chosen neighbour cell
+	PUSH(R5)								| Arg. 3 <- chosen neighbour cell
 	PUSH(R4)								| Arg. 2 <- curr_cell
 	LD(BP, -12, R4)
 	PUSH(R4)								| Arg. 1 <- maze
 	CALL(connect__, 4)
 
-	PUSH(R0)								| Arg. 5 <- chosen neighbour cell
+	PUSH(R5)								| Arg. 5 <- chosen neighbour cell
 	PUSH(R3)								| Arg. 4 <- bitmap "visited"
 	PUSH(R2)								| Arg. 3 <- nb_cols
 	LD(BP, -16, R5)
@@ -166,7 +166,7 @@ is_visited__:
 	CMOVE(0, R0)
 	LD(BP, -12, R1)							| R1 <- curr_cell
 	DIVC(R1, 32, R2)
-	MULC(R2, 4, R2)							| Word offset to byte offset for bitmap
+	MULC(R2, BYTES_PER_WORD, R2)			| Word offset to byte offset for bitmap
 	LD(BP, -16, R3)							| R3 <- Address of the first word of the bitmap
 	ADD(R3, R2, R3)  
 	PUSH(R3)								| Stack <- Address of the word to check
@@ -200,24 +200,27 @@ connect__:
 	PUSH(R3)
 	PUSH(R4)
 
-	LD(BP, -8, R2)
-	LD(BP, -12, R3)							| R2 and R3 <- cells to connect
-	LD(BP, -16, R1)							| R1 <- nb_cols
+	LD(BP, -16, R2)
+	LD(BP, -20, R3)							| R2 and R3 <- cells to connect
+	LD(BP, -24, R1)							| R1 <- nb_cols
 	CMPLT(R2, R3, R0)
-	BT(R0, . + 4)
-	SWAP(R2, R3)							| nb_cell of R2 < nb_cell of R3
-											
-	DIV(R3, R1, R0)
-	MULC(R0, WORDS_PER_ROW, R0)				| R0 <- row_offset
-	MOD(R2, R1, R4)							| R4 <- R2 % nb_cols (<- source_col)
-	DIVC(R4, CELLS_PER_WORD, R4)			| R4 <- word_offset_in_line
-	ADD(R4, R0, R0)
-	PUSH(R0)								| Loc. var. 1: word_offset
+	BT(R0, R2_less_than_R3)
+	SWAP(R2, R3)
 
-	MODC(R2, CELLS_PER_WORD, R0)			| R0 <- byte_offset 
+R2_less_than_R3:									
+	DIV(R3, R1, R0)
+	MULC(R0, WORDS_PER_ROW, R0)				| R0 <- row_offset of cell contained in R3
+	MOD(R2, R1, R4)							| R4 <- col of cell contained in R2
+	PUSH(R4)
+	DIVC(R4, CELLS_PER_WORD, R4)			| R4 <- word_offset_in_line of cell contained in R2
+	ADD(R4, R0, R0)
+	POP(R4)									| R4 <- source_col
+	PUSH(R0)								| Loc. var. 1: word_offset of the cell to modify
+
+	MODC(R4, CELLS_PER_WORD, R0)			| R0 <- byte_offset 
 	PUSH(R0)								| Loc. var. 2: byte_offset
 
-	LD(BP, -4, R1)							| First word of the maze
+	LD(BP, -12, R1)							| First word of the maze
 	SUB(R3, R2, R0)
 	SUBC(R0, 1, R0)
 	BEQ(R0, connect_hor)
@@ -234,18 +237,18 @@ connect_hor:
 	ADD(R3, R2, R3)							| R3 <- word_offset + 3 * WORDS_PER_MEM_LINE
 	MULC(R3, BYTES_PER_WORD, R3)			| Word offset to byte offset
 	ADD(R1, R3, R1)							| R1 <- address of the first word to change
-	BR(word_change, LP)						| First word changed
+	BR(word_change, LP)
 
 	CMOVE(BYTES_PER_WORD, R3)
 	MULC(R3, WORDS_PER_MEM_LINE, R3)
 	ADD(R1, R3, R1)							| R1 <- address of the second word to change
-	BR(word_change, LP)						| Second word changed
+	BR(word_change, LP)	
 
 	ADD(R1, R3, R1)							| R1 <- address of the third word to change
-	BR(word_change, LP)						| Third word changed
+	BR(word_change, LP)
 
 	ADD(R1, R3, R1)							| R1 <- address of the fourth word to change
-	BR(word_change, LP)						| Fourth word changed
+	BR(word_change, LP)
 
 	BR(connect_end)
 
@@ -272,11 +275,13 @@ mask_generator:
 	MULC(R3, 8, R2)
 	SHL(R0, R2, R0)							| R0 <- 0xFFFFFFxx << (8 * byte_offset)
 											| where xx is 00 or E1
-	CMOVE(4, R2)
-	SUB(R2, R3, R3)
-	MULC(R3, 8, R3)
+	CMOVE(32, R3)
+	SUB(R3, R2, R3)
 	CMOVE(0xFFFFFFFF, R2)
-	SHR(R2, R3, R2)							| R2 <- 0xFFFFFFFF >> 8 * (4 - byte_offset)
+	SHR(R2, R3, R2)							| R2 <- 0xFFFFFFFF >> 32 - 8 * byte_offset)
+	CMPLTC(R3, 32, R3)						| Shift isn't performed if R3 = 32
+	BT(R3, . + 8)
+	CMOVE(0x00000000, R2)
 	OR(R0, R2, R0)							| R0 <- mask
 	JMP(LP)
 
