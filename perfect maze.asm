@@ -32,7 +32,6 @@ perfect_maze:
 	LD(BP, -20, R2)							| R2 <- nb_cols
 	LD(BP, -24, R3)					 		| R3 <- bitmap "visited"
 	LD(BP, -28, R4) 				 		| R4 <- curr_cell
-.breakpoint
 	PUSH(R3)								| Arg. 2 <- bitmap "visited"
 	PUSH(R4)								| Arg. 1 <- curr_cell
 	CALL(change_to_visited__, 2)
@@ -68,10 +67,10 @@ neighbour_4:
 	ADDC(R1, 1, R1)
 	ADD(R4, R2, R0)
 	PUSH(R0)								| Stack <- cell of a valid neighbour (bottom)
-
-	BEQ(R1, perfect_maze_end)
+	
 
 build_maze_loop:
+	BEQ(R1, perfect_maze_end)
 	RANDOM()
 	CMPLTC(R0, 0, R2)
 	BF(R2, . + 8)
@@ -91,7 +90,6 @@ build_maze_loop:
 	PUSH(R5)								| Arg. 1 <- chosen neighbour cell
 	CALL(is_visited__, 2)
 	BT(R0, build_maze_loop)
-
 	LD(BP, -20, R2)							
 	PUSH(R2)								| Arg. 4 <- nb_cols
 	PUSH(R5)								| Arg. 3 <- chosen neighbour cell
@@ -108,7 +106,8 @@ build_maze_loop:
 	PUSH(R4)								| Arg. 1 <- maze
 	CALL(perfect_maze, 5)
 
-	BNE(R1, build_maze_loop)
+	CMPLEC(R1, 0, R5)
+	BEQ(R5, build_maze_loop)
 
 perfect_maze_end:
 	POP(R5)
@@ -119,7 +118,7 @@ perfect_maze_end:
 	POP(R0)
 	POP(BP)
 	POP(LP)
-	RTN()
+	JMP(LP)
 
 
 
