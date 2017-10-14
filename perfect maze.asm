@@ -1,4 +1,3 @@
-.include beta.uasm
 
 | Definition of useful constants.
 
@@ -9,8 +8,7 @@ BYTES_PER_WORD = 4
 
 
 
-|; Reg[Rc] <- Reg[Ra] mod Reg[Rb] (Rc should be different from Ra and Rb)
-.macro MOD(Ra, Rb, Rc) 		DIV(Ra, Rb, Rc)  MUL(Rc, Rb, Rc)  SUB(Ra, Rc, Rc)
+
 
 |; Reg[Rc] <- Reg[Ra] mod CC (Rc should be different from Ra)
 .macro MODC(Ra, CC, Rc) 	DIVC(Ra, CC, Rc)  MULC(Rc, CC, Rc)  SUB(Ra, Rc, Rc)
@@ -20,7 +18,7 @@ BYTES_PER_WORD = 4
 
 
 
-perfect_maze__:
+perfect_maze:
 	PUSH(LP)
 	PUSH(BP)
 	MOVE(SP, BP)
@@ -102,7 +100,7 @@ build_maze_loop:
 	LD(BP, -16, R5)
 	PUSH(R5)								| Arg. 2 <- nb_rows
 	PUSH(R4)								| Arg. 1 <- maze
-	CALL(perfect_maze__, 5)
+	CALL(perfect_maze, 5)
 
 	BEQ(R1, build_maze_loop)
 
