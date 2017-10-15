@@ -37,29 +37,29 @@ perfect_maze:
 	CALL(change_to_visited__, 2)
 	CMOVE(0, R1)							| R1 = nb_valid_neighbours
 	
-neighbour_1:
+neighbour_left:
 	MOD(R4, R2, R0)							| R0 <- col of curr_cell
-	BF(R0, neighbour_2)
+	BF(R0, neighbour_right)
 	ADDC(R1, 1, R1)
 	SUBC(R4, 1, R5)
 	PUSH(R5)								| Stack <- cell of a valid neighbour (left)
 
-neighbour_2:
+neighbour_right:
 	SUBC(R2, 1, R5)
 	CMPEQ(R5, R0, R5)
-	BT(R5, neighbour_3)
+	BT(R5, neighbour_top)
 	ADDC(R1, 1, R1)
 	ADDC(R4, 1, R5)
 	PUSH(R5)								| Stack <- cell of a valid neighbour (right)
 
-neighbour_3:
+neighbour_top:
 	DIV(R4, R2, R0)							| R0 <- row of curr_cell
-	BEQ(R0, neighbour_4)
+	BEQ(R0, neighbour_bottom)
 	ADDC(R1, 1, R1)
 	SUB(R4, R2, R5)
 	PUSH(R5)								| Stack <- cell of a valid neighbour (top)
 
-neighbour_4:
+neighbour_bottom:
 	LD(BP, -16, R5)							| R5 <- rows
 	SUBC(R5, 1, R5)
 	CMPEQ(R5, R0, R5)
@@ -94,8 +94,8 @@ build_maze_loop:
 	PUSH(R2)								| Arg. 4 <- nb_cols
 	PUSH(R5)								| Arg. 3 <- chosen neighbour cell
 	PUSH(R4)								| Arg. 2 <- curr_cell
-	LD(BP, -12, R4)
-	PUSH(R4)								| Arg. 1 <- maze
+	LD(BP, -12, R0)
+	PUSH(R0)								| Arg. 1 <- maze
 	CALL(connect__, 4)
 
 	PUSH(R5)								| Arg. 5 <- chosen neighbour cell
@@ -103,7 +103,7 @@ build_maze_loop:
 	PUSH(R2)								| Arg. 3 <- nb_cols
 	LD(BP, -16, R5)
 	PUSH(R5)								| Arg. 2 <- nb_rows
-	PUSH(R4)								| Arg. 1 <- maze
+	PUSH(R0)								| Arg. 1 <- maze
 	CALL(perfect_maze, 5)
 
 	CMPLEC(R1, 0, R5)
