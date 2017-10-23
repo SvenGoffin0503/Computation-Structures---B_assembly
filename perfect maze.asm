@@ -7,9 +7,6 @@ CELLS_PER_WORD = 4
 BYTES_PER_WORD = 4
 
 
-
-
-
 |; Reg[Rc] <- Reg[Ra] mod CC (Rc should be different from Ra)
 .macro MODC(Ra, CC, Rc) 	DIVC(Ra, CC, Rc)  MULC(Rc, CC, Rc)  SUB(Ra, Rc, Rc)
 
@@ -29,62 +26,72 @@ perfect_maze:
 	PUSH(R4)
 	PUSH(R5)
 
-	LD(BP, -20, R2)							| R2 <- nb_cols
-	LD(BP, -24, R3)					 		| R3 <- bitmap "visited"
-	LD(BP, -28, R4) 				 		| R4 <- curr_cell
-	PUSH(R3)								| Arg. 2 <- bitmap "visited"
-	PUSH(R4)								| Arg. 1 <- curr_cell
-	CALL(change_to_visited__, 2)
-	CMOVE(0, R1)							| R1 = nb_valid_neighbours
+	LD(BP, -20, R2)							| R2 <- nb_col
+	LD(BP, -24, R3)					 		| R3 <- visited
+	LD(BP, -28, R4) 				 		| R4 <- cur_cell
+
+|; Creation of identifiers
+	col_cur_cell = R0
+	row_cur_cell = R0
+	nb_val_n = R1
+	nb_col = R2
+	visited = R3
+	cur_cell = R4
+	val_neigh = R5
+	nb_row = R5
+
+	BR(change_to_visited, LP)
+	CMOVE(0, nb_val_n)
 	
-neighbour_left:
-	MOD(R4, R2, R0)							| R0 <- col of curr_cell
-	BF(R0, neighbour_right)
-	ADDC(R1, 1, R1)
-	SUBC(R4, 1, R5)
-	PUSH(R5)								| Stack <- cell of a valid neighbour (left)
+check_left_neighbour:
+	MOD(cur_cell, nb_col, col_cur_cell)
+	BEQ(col_cur_cell, check_right_neighbour)
+	ADDC(nb_val_n, 1, nb_val_n)
+	SUBC(cur_cell, 1, val_neigh)
+	PUSH(val_neigh)
 
-neighbour_right:
-	SUBC(R2, 1, R5)
-	CMPEQ(R5, R0, R5)
-	BT(R5, neighbour_top)
-	ADDC(R1, 1, R1)
-	ADDC(R4, 1, R5)
-	PUSH(R5)								| Stack <- cell of a valid neighbour (right)
+check_right_neighbour:
+	SUBC(nb_col, 1, R5)
+	CMPEQ(R5, col_cur_cell, R5)
+	BT(R5, check_top_neighbour)
+	ADDC(nb_val_n, 1, nb_val_n)
+	ADDC(cur_cell, 1, val_neigh)
+	PUSH(val_neigh)
 
-neighbour_top:
-	DIV(R4, R2, R0)							| R0 <- row of curr_cell
-	BEQ(R0, neighbour_bottom)
-	ADDC(R1, 1, R1)
-	SUB(R4, R2, R5)
-	PUSH(R5)								| Stack <- cell of a valid neighbour (top)
+check_top_neighbour:
+	DIV(cur_cell, nb_col, row_cur_cell)
+	BEQ(row_cur_cell, check_bottom_neighbour)
+	ADDC(nb_val_n, 1, nb_val_n)
+	SUB(cur_cell, nb_col, val_neigh)
+	PUSH(val_neigh)
 
-neighbour_bottom:
-	LD(BP, -16, R5)							| R5 <- rows
-	SUBC(R5, 1, R5)
-	CMPEQ(R5, R0, R5)
+check_bottom_neighbour:
+	LD(BP, -16, nb_row)
+	SUBC(nb_row, 1, R5)
+	CMPEQ(R5, row_cur_cell, R5)
 	BT(R5, build_maze_loop)
-	ADDC(R1, 1, R1)
-	ADD(R4, R2, R0)
-	PUSH(R0)								| Stack <- cell of a valid neighbour (bottom)
-	
+	ADDC(nb_val_n, 1, nb_val_n)
+	ADD(cur_cell, nb_col, val_neigh)
+	PUSH(val_neigh)
 
 build_maze_loop:
-	BEQ(R1, perfect_maze_end)
+	chos_neigh = R5
+
+	BEQ(nb_val_n, perfect_maze_end)
 	RANDOM()
 	CMPLTC(R0, 0, R2)
 	BF(R2, . + 8)
 	MULC(R0, -1, R0)
 	MOD(R0, R1, R2)
-	ADDC(R2, 1, R2)							| R2 <- neighbour chosen randomly
+	ADDC(R2, 1, R2)							| R2 <- nb of the neighbour chosen randomly
 	MULC(R2, -4, R2)
 	ADD(SP, R2, R2)
-	LD(R2, 0, R5)							| R5 <- nb cell of the chosen neighbour
-	SUBC(R1, 1, R1)
-	LD(SP, -4, R0)
-	ST(R0, 0, R2)							
-	DEALLOCATE(1)							| Deletion of the chosen neighbour cell 
-											| on the stack
+	LD(R2, 0, chos_neigh)
+	SUBC(nb_val_n, 1, nb_val_n)
+
+	LD(SP, -4, R0)							|; Deletion of the chosen neighbour cell 
+	ST(R0, 0, R2)							|; on the stack
+	DEALLOCATE(1)						
 
 	PUSH(R3)								| Arg. 2 <- bitmap "visited"
 	PUSH(R5)								| Arg. 1 <- chosen neighbour cell
@@ -122,37 +129,24 @@ perfect_maze_end:
 
 
 
-|; change_to_visited(curr_cell, bitmap)
-|; Marks the cell curr_cell as visited
+|; change_to_visited:
+|; 		-> Marks the cell curr_cell as visited in the bitmap.
+|;		-> Side-effects : values contained in R0, R1 and R5 are modified.
 
-change_to_visited__:
-	PUSH(LP)
-	PUSH(BP)
-	MOVE(SP, BP)
-	PUSH(R1)
-	PUSH(R2)
-	PUSH(R3)
-	
-	LD(BP, -12, R1)							| R1 <- curr_cell
-	DIVC(R1, 32, R2)
-	MULC(R2, 4, R2)							| Word offset to byte offset for bitmap
-	LD(BP, -16, R3)							| R3 <- Address of the first word of the bitmap
-	ADD(R3, R2, R3)  
-	PUSH(R3)								| Stack <- Address of the word to modify
-	CMOVE(1, R3)
-	MODC(R1, 32, R2)
-	SHL(R3, R2, R3)
-	POP(R1)									| R1 <- Address of the word to modify
-	LD(R1, 0, R2)							| R2 <- Word of the bitmap to modify
-	OR(R2, R3, R2)							| Modification of the concerned word
-	ST(R2, 0, R1)
+change_to_visited:
+	add_to_update = R1
+	w_to_update = R5
 
-	POP(R3)
-	POP(R2)
-	POP(R1)
-	POP(BP)
-	POP(LP)
-	RTN()
+	DIVC(cur_cell, 32, R1)
+	MULC(R1, 4, R1)
+	ADD(visited, R1, add_to_update)
+	CMOVE(1, R0)
+	MODC(cur_cell, 32, R5)
+	SHL(R0, R5, R0)
+	LD(add_to_update, 0, w_to_update)
+	OR(w_to_update, R0, w_to_update)
+	ST(w_to_update, 0, add_to_update)
+	JMP(LP)
 	
 
 
