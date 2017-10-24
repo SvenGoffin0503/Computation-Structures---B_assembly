@@ -1,5 +1,5 @@
 
-| Definition of useful constants.
+|; Useful constants
 
 WORDS_PER_MEM_LINE = 8
 WORDS_PER_ROW = 64
@@ -7,13 +7,31 @@ CELLS_PER_WORD = 4
 BYTES_PER_WORD = 4
 
 
-|; Reg[Rc] <- Reg[Ra] mod CC (Rc should be different from Ra)
+
+|; MODC(Ra, CC, Rc) computes Reg[Ra] % CC and store the result in register Rc
+|; (Rc should be different from Ra)
 .macro MODC(Ra, CC, Rc) 	DIVC(Ra, CC, Rc)  MULC(Rc, CC, Rc)  SUB(Ra, Rc, Rc)
 
-|; Reg[Ra] <-> Reg[Rb]
+|; SWAP(Ra, Rb) swaps the content of registers Ra and Rb
 .macro SWAP(Ra, Rb) 		PUSH(Ra)  MOVE(Rb, Ra)  POP(Rb)
 
 
+
+|; perfect_maze(maze, nb_row, nb_col, visited, cur_cell)
+|;
+|; This function builds recursively the perfect maze in the memory.
+|;
+|; ARGUMENTS:
+|; 		-> maze 	: memory address of the first word of the maze
+|;		-> nb_row 	: number of rows of the maze
+|;		-> nb_col 	: number of columns of the maze
+|;		-> visited 	: memory address of the first word of the bitmap 
+|;		-> cur_cell : Number of the cell to which the next cell to be connected to 
+|;					  the maze will be contected
+|;
+|; RETURNS: nothing
+|;
+|; SIDE-EFFECTS: none
 
 perfect_maze:
 	PUSH(LP)
@@ -31,18 +49,22 @@ perfect_maze:
 	LD(BP, -28, R4) 				 		| R4 <- cur_cell
 
 |; Creation of identifiers
-	col_cur_cell = R0
-	row_cur_cell = R0
-	nb_val_n = R1
-	nb_col = R2
-	visited = R3
-	cur_cell = R4
-	val_neigh = R5
-	nb_row = R5
+	maze = R0								|; Address of the first word of the maze
+	col_cur_cell = R0 						|; Column of the current cell
+	row_cur_cell = R0 						|; Row of the current cell
+	nb_val_n = R1 							|; Number of valid neighbours
+	nb_col = R2 							|; Number of columns in the maze
+	visited = R3 							|; Address of the first word of the bitmap
+	cur_cell = R4 							|; Number of the cell to which the next cell to
+											|; be connected to the maze will be contected
+	val_neigh = R5 							|; Number of the cell of a valid neighbour
+	nb_row = R5 							|; Number of rows in the maze
 
 	BR(change_to_visited, LP)
 	CMOVE(0, nb_val_n)
 	
+
+|; If valid, the number of the cell of the left neighbour of cur_cell is pushed on the stack.
 check_left_neighbour:
 	MOD(cur_cell, nb_col, col_cur_cell)
 	BEQ(col_cur_cell, check_right_neighbour)
@@ -50,6 +72,8 @@ check_left_neighbour:
 	SUBC(cur_cell, 1, val_neigh)
 	PUSH(val_neigh)
 
+
+|; If valid, the number of the cell of the right neighbour of cur_cell is pushed on the stack.
 check_right_neighbour:
 	SUBC(nb_col, 1, R5)
 	CMPEQ(R5, col_cur_cell, R5)
@@ -58,6 +82,8 @@ check_right_neighbour:
 	ADDC(cur_cell, 1, val_neigh)
 	PUSH(val_neigh)
 
+
+|; If valid, the number of the cell of the top neighbour of cur_cell is pushed on the stack.
 check_top_neighbour:
 	DIV(cur_cell, nb_col, row_cur_cell)
 	BEQ(row_cur_cell, check_bottom_neighbour)
@@ -65,6 +91,8 @@ check_top_neighbour:
 	SUB(cur_cell, nb_col, val_neigh)
 	PUSH(val_neigh)
 
+
+|; If valid, the number of the cell of the bottom neighbour of cur_cell is pushed on the stack.
 check_bottom_neighbour:
 	LD(BP, -16, nb_row)
 	SUBC(nb_row, 1, R5)
@@ -74,46 +102,50 @@ check_bottom_neighbour:
 	ADD(cur_cell, nb_col, val_neigh)
 	PUSH(val_neigh)
 
-build_maze_loop:
-	chos_neigh = R5
 
-	BEQ(nb_val_n, perfect_maze_end)
+|; build_maze_loop explores one by one the valid neighbours of cur_cell. It chooses randomly a 
+|; neighbour and connects it to the maze if it hasn't been visited yet.
+build_maze_loop:
+	chos_neigh = R5							|; Number of the cell of the chosen neighbour
+
+	BEQ(nb_val_n, perfect_maze_end) 		|; Exits when all valid neighbours are explored.
 	RANDOM()
-	CMPLTC(R0, 0, R2)
-	BF(R2, . + 8)
-	MULC(R0, -1, R0)
-	MOD(R0, R1, R2)
+	PUSH(R0)
+	CALL(abs__, 1)
+	MOD(R0, nb_val_n, R2)
 	ADDC(R2, 1, R2)							| R2 <- nb of the neighbour chosen randomly
 	MULC(R2, -4, R2)
 	ADD(SP, R2, R2)
 	LD(R2, 0, chos_neigh)
-	SUBC(nb_val_n, 1, nb_val_n)
 
-	LD(SP, -4, R0)							|; Deletion of the chosen neighbour cell 
-	ST(R0, 0, R2)							|; on the stack
+	SUBC(nb_val_n, 1, nb_val_n)				|; Removes the chosen neighbour cell from the 
+	LD(SP, -4, R0)							|; stack and decrements the number of valid 
+	ST(R0, 0, R2)							|; neighbours not yet explored.
 	DEALLOCATE(1)						
 
-	PUSH(R3)								| Arg. 2 <- bitmap "visited"
-	PUSH(R5)								| Arg. 1 <- chosen neighbour cell
-	CALL(is_visited__, 2)
-	BT(R0, build_maze_loop)
-	LD(BP, -20, R2)							
-	PUSH(R2)								| Arg. 4 <- nb_cols
-	PUSH(R5)								| Arg. 3 <- chosen neighbour cell
-	PUSH(R4)								| Arg. 2 <- curr_cell
-	LD(BP, -12, R0)
-	PUSH(R0)								| Arg. 1 <- maze
-	CALL(connect__, 4)
+	PUSH(visited)							|; Arg. 2 <- bitmap "visited"
+	PUSH(chos_neigh)						|; Arg. 1 <- chosen neighbour cell
+	CALL(is_visited, 2)
 
-	PUSH(R5)								| Arg. 5 <- chosen neighbour cell
-	PUSH(R3)								| Arg. 4 <- bitmap "visited"
-	PUSH(R2)								| Arg. 3 <- nb_cols
+	BT(R0, build_maze_loop)
+
+	LD(BP, -20, R2)							
+	PUSH(nb_col)							|; Arg. 4 <- nb_cols
+	PUSH(chos_neigh)						|; Arg. 3 <- chosen neighbour cell
+	PUSH(cur_cell)							|; Arg. 2 <- cur_cell
+	LD(BP, -12, R0)
+	PUSH(maze)								|; Arg. 1 <- maze
+	CALL(connect, 4)
+
+	PUSH(chos_neigh)						|; Arg. 5 <- chosen neighbour cell
+	PUSH(visited)							|; Arg. 4 <- bitmap "visited"
+	PUSH(nb_col)							|; Arg. 3 <- nb_col
 	LD(BP, -16, R5)
-	PUSH(R5)								| Arg. 2 <- nb_rows
-	PUSH(R0)								| Arg. 1 <- maze
+	PUSH(nb_row)							|; Arg. 2 <- nb_row
+	PUSH(maze)								|; Arg. 1 <- maze
 	CALL(perfect_maze, 5)
 
-	CMPLEC(R1, 0, R5)
+	CMPLEC(nb_val_n, 0, R5)
 	BEQ(R5, build_maze_loop)
 
 perfect_maze_end:
@@ -128,14 +160,13 @@ perfect_maze_end:
 	JMP(LP)
 
 
-
-|; change_to_visited:
-|; 		-> Marks the cell curr_cell as visited in the bitmap.
-|;		-> Side-effects : values contained in R0, R1 and R5 are modified.
+|; change_to_visited marks the current cell as visited in the bitmap.
+|;
+|; SIDE-EFFECTS : values contained in R0, R1 and R5 are modified.
 
 change_to_visited:
-	add_to_update = R1
-	w_to_update = R5
+	add_to_update = R1						|; Memory address of the bitmap word to update
+	w_to_update = R5						|; Bitmap word to update
 
 	DIVC(cur_cell, 32, R1)
 	MULC(R1, 4, R1)
@@ -147,49 +178,74 @@ change_to_visited:
 	OR(w_to_update, R0, w_to_update)
 	ST(w_to_update, 0, add_to_update)
 	JMP(LP)
-	
 
 
-|; is_visited__(curr_cell, bitmap)
-|; Returns 1 if curr_cell has already been visited, 0 otherwise.
-|; Side effects: modifies the value contained in R0.
+|; is_visited(cur_cell, visited)
+|;
+|; This function checks whether cur_cell is already connected to the maze or not.
+|;
+|; ARGUMENTS:
+|;		-> cur_cell : number of the potential next cell to be connected to the maze
+|;		-> visited 	: memory address of the first word of the bitmap 
+|;
+|; RETURNS: 1 if curr_cell has already been visited, 0 otherwise (in register R0).
+|:
+|; SIDE-EFFECTS: Value contained in R0 is modified.
 
-is_visited__:
+is_visited:
 	PUSH(LP)
 	PUSH(BP)
 	MOVE(SP, BP)
-	PUSH(R1)
 	PUSH(R2)
 	PUSH(R3)
+	PUSH(R4)
 	
+	w_to_check = R2							|; Bitmap word to check
+	add_w_to_check = R3						|; Address of the bitmap word to check
+
 	CMOVE(0, R0)
-	LD(BP, -12, R1)							| R1 <- curr_cell
-	DIVC(R1, 32, R2)
-	MULC(R2, BYTES_PER_WORD, R2)			| Word offset to byte offset for bitmap
-	LD(BP, -16, R3)							| R3 <- Address of the first word of the bitmap
-	ADD(R3, R2, R3)  
-	PUSH(R3)								| Stack <- Address of the word to check
+	LD(BP, -12, cur_cell)
+	DIVC(cur_cell, 32, R2)
+	MULC(R2, BYTES_PER_WORD, R2)			|; Word offset to byte offset for bitmap
+	LD(BP, -16, visited)
+	ADD(visited, R2, add_w_to_check)
+	PUSH(add_w_to_check)
 	CMOVE(1, R3)
-	MODC(R1, 32, R2)
-	SHL(R3, R2, R3)
-	POP(R1)									| R1 <- Address of the word to check
-	LD(R1, 0, R2)							| R2 <- Word of the bitmap to check
-	AND(R2, R3, R2)
+	MODC(cur_cell, 32, R2)
+	SHL(R3, R2, R4)
+	POP(add_w_to_check)
+	LD(add_w_to_check, 0, w_to_check)
+	AND(w_to_check, R4, R2)					|; Isolates the bit of the bitmap corresponding
+											|; to cur_cell
 	BF(R2, is_visited_end)
 	CMOVE(1, R0)
 
 is_visited_end:
+	POP(R4)
 	POP(R3)
 	POP(R2)
-	POP(R1)
 	POP(BP)
 	POP(LP)
 	RTN()
 
 
 
+|; connect(maze, cell1, cell2, nb_cols)
+|;
+|; This function connects the cells cell1 and cell2. After its execution, cell1 and cell2
+|; both belong to the maze.
+|;
+|; ARGUMENTS:
+|; 		-> maze 	: memory address of the first word of the maze
+|;		-> cell1 	: number of one of the cells to connect
+|;		-> cell2 	: number of the other cell to connect
+|;		-> nb_cols 	: number of columns of the maze
+|;
+|; RETURNS: nothing
+|:
+|; SIDE-EFFECTS: none
 
-connect__:
+connect:
 	PUSH(LP)
 	PUSH(BP)
 	MOVE(SP, BP)
@@ -201,26 +257,34 @@ connect__:
 
 	LD(BP, -16, R2)
 	LD(BP, -20, R3)							| R2 and R3 <- cells to connect
-	LD(BP, -24, R1)							| R1 <- nb_cols
-	CMPLT(R2, R3, R0)
-	BT(R0, R2_less_than_R3)
-	SWAP(R2, R3)
+	LD(BP, -24, R1)							| R1 <- nb_col
 
-R2_less_than_R3:									
-	DIV(R3, R1, R0)
-	MULC(R0, WORDS_PER_ROW, R0)				| R0 <- row_offset of cell contained in R3
-	MOD(R2, R1, R4)							| R4 <- col of cell contained in R2
-	PUSH(R4)
-	DIVC(R4, CELLS_PER_WORD, R4)			| R4 <- word_offset_in_line of cell contained in R2
-	ADD(R4, R0, R0)
-	POP(R4)									| R4 <- source_col
-	PUSH(R0)								| Loc. var. 1: word_offset of the cell to modify
+	byte_off = R0							|; Byte offset of the cell to modify
+	w_off = R0								|; Word offset of the cell to modify
+	nb_cols = R1
+	cell1 = R2
+	cell2 = R3
+	col_cell1 = R4
 
-	MODC(R4, CELLS_PER_WORD, R0)			| R0 <- byte_offset 
-	PUSH(R0)								| Loc. var. 2: byte_offset
+	CMPLT(cell1, cell2, R0)					|; Swaps cell1 and cell2 if cell2 < cell1	
+	BT(R0, cell1_less_than_cell2)
+	SWAP(cell1, cell2)
 
-	LD(BP, -12, R1)							| First word of the maze
-	SUB(R3, R2, R0)
+cell1_less_than_cell2:									
+	DIV(cell2, nb_cols, R0)
+	MULC(R0, WORDS_PER_ROW, R0)				|; R0 <- row_offset of cell cell2
+	MOD(cell1, nb_cols, col_cell1)
+	PUSH(col_cell1)
+	DIVC(col_cell1, CELLS_PER_WORD, R4)		| R4 <- word_offset_in_line of cell cell1
+	ADD(R4, R0, w_off)
+	POP(R4)									| R4 <- col_cell1
+	PUSH(w_off)								| Loc. var. 1: w_off
+
+	MODC(col_cell1, CELLS_PER_WORD, byte_off)			| R0 <- byte_offset 
+	PUSH(byte_off)								| Loc. var. 2: byte_offset
+
+	LD(BP, -12, nb_cols)					| First word of the maze
+	SUB(cell2, cell1, R0)
 	SUBC(R0, 1, R0)
 	BEQ(R0, connect_hor)
 	BNE(R0, connect_ver)
@@ -269,6 +333,12 @@ connect_ver:
 	BR(connect_end)
 
 
+
+|; mask_generator creates creates the appropriate mask in order to perform either a 
+|; vertical or a horizontal connection. The mask is saved in register R0.
+|;
+|; SIDE-EFFECTS : values contained in R0, R2 and R3 are modified.
+
 mask_generator:
 	POP(R3)									| R3 <- byte_offset
 	MULC(R3, 8, R2)
@@ -285,10 +355,16 @@ mask_generator:
 	JMP(LP)
 
 
+
+|; word_change creates the connection by performing a AND opperation between the mask
+|; and an apropriate memory word.
+|;
+|; SIDE-EFFECTS : value contained in R2 is modified.
+
 word_change:
 	LD(R1, 0, R2)
 	AND(R2, R0, R2)
-	ST(R2, 0, R1)							| <R1> <- mask & Mem[R1]
+	ST(R2, 0, R1)							|; Stores the modified word in memory
 	JMP(LP)
 
 
