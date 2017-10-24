@@ -14,7 +14,7 @@ BYTES_PER_WORD = 4
 .macro SWAP(Ra, Rb) 		PUSH(Ra)  MOVE(Rb, Ra)  POP(Rb)
 
 
-|; perfect maze function 
+|; Perfect maze function 
 |; 		-> Creates the perfect maze
 |; 		-> At the end, no modification of the values of the registers
 
@@ -96,6 +96,7 @@ check_bottom_neighbour:
 
 |; Build maze loop is a function which explores the valid neighbours and build the perfect maze
 |; 		-> We need the valid neigbour which is at this time stored in R5
+|; 		-> Side effects : the values contained in R2 and R5 are modified
 
 build_maze_loop:
 	chos_neigh = R5
@@ -157,7 +158,7 @@ perfect_maze_end:
 
 |; change_to_visited:
 |; 		-> Marks the cell curr_cell as visited in the bitmap.
-|;		-> Side-effects : values contained in R0, R1 and R5 are modified.
+|;		-> Side effects : values contained in R0, R1 and R5 are modified.
 
 change_to_visited:
 	add_to_update = R1
@@ -176,8 +177,8 @@ change_to_visited:
 
 
 |; is_visited__(curr_cell, bitmap)
-|; Returns 1 if curr_cell has already been visited, 0 otherwise.
-|; Side effects: modifies the value contained in R0.
+|;  		-> Returns 1 if curr_cell has already been visited, 0 otherwise.
+|;  		-> Side effects: modifies the value contained in R0, R1, R2 and R3.
 
 is_visited__:
 	PUSH(LP)
@@ -218,6 +219,7 @@ is_visited_end:
 
 |; Connect function
 |; 		-> Opens a vertical or horizontal connection between 2 cells
+|; 		-> Side effects : the values contained in R1, R2 and R3 are modified
 
 connect__:
 	PUSH(LP)
@@ -243,7 +245,8 @@ connect__:
 
 
 |; Cell1 less than cell2 function
-|; 		-> Opens a vertical or a horizontal connections in function of cell1 and cell2 
+|; 		-> Opens a vertical or a horizontal connection in function of cell1 and cell2 
+|; 		-> Side effects : the values contained in R0 and R4 are modified
 
 cell1_less_than_cell2:									
 	DIV(cell2, nb_cols, R0)
@@ -265,6 +268,10 @@ cell1_less_than_cell2:
 	BNE(R0, connect_ver)
 
 
+|; Connect hor function
+|; 		-> Opens a horizontal connection
+|; 		-> Side effects : the values contained in R0, R1, R2 and R3 are modified
+
 connect_hor:
 	CMOVE(0xFFFFFF00, R0)
 	BR(mask_generator, LP)					| R0 <- mask
@@ -274,6 +281,9 @@ connect_hor:
 	MULC(R2, WORDS_PER_MEM_LINE, R2)
 	ADD(R3, R2, R3)							| R3 <- word_offset + 3 * WORDS_PER_MEM_LINE
 	MULC(R3, BYTES_PER_WORD, R3)			| Word offset to byte offset
+
+|; Update of the four words :
+
 	ADD(R1, R3, R1)							| R1 <- address of the first word to change
 	BR(word_change, LP)
 
@@ -291,12 +301,19 @@ connect_hor:
 	BR(connect_end)
 
 
+|; Connect ver function
+|; 		-> Opens a vertical connection
+|; 		-> Side effects : the values contained in R0, R1 and R3 are modified
+
 connect_ver:
 	CMOVE(0xFFFFFFE1, R0)
 	BR(mask_generator, LP)					| R0 <- mask
 
 	POP(R3)									| R3 <- word_offset
 	MULC(R3, BYTES_PER_WORD, R3)			| Word offset to byte offset
+
+| Update of the two words :
+
 	ADD(R1, R3, R1)							| R1 <- address of the first word to change
 	BR(word_change, LP)						| First word changed
 
@@ -306,6 +323,11 @@ connect_ver:
 	BR(word_change, LP)						| Second word changed
 
 	BR(connect_end)
+
+
+|; Mask generator function
+|; 		-> Put in R0 the correct mask that we need in function of R3 which contains byte_offset
+|; 		-> Side effects : the values contained in R0, R2 and R3 are modified
 
 
 mask_generator:
